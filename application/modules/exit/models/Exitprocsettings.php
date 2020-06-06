@@ -52,7 +52,7 @@ class Exit_Model_Exitprocsettings extends Zend_Db_Table_Abstract
 
 		/** retrieve names array **/
 		$tmpRes = $tablecontent;
-		$empDetailsObj = $buDetailsObj = $deptDetailsObj = '';
+		$empDetailsObj = $buDetailsObj = $deptDetailsObj = array();
 		$tmpResObj = $this->fetchAll($tmpRes)->toArray();
 		if(count($tmpResObj) > 0)
 		{
@@ -74,6 +74,7 @@ class Exit_Model_Exitprocsettings extends Zend_Db_Table_Abstract
 				$departmentsStr .= $tmpResObj[$e]['department_id'].",";
 			}
 			
+			
 			if(empty($sort)) 
 				$sort = 'ASC';
 
@@ -86,13 +87,11 @@ class Exit_Model_Exitprocsettings extends Zend_Db_Table_Abstract
 								->from(array('emp' => 'main_employees_summary'),array('emp.user_id','emp.userfullname','emp.profileimg', 'emp.jobtitle_name'))
 								->where('emp.user_id IN ('.$employeesStr.') AND emp.isactive = 1 ')
 								->order("emp.userfullname");
-
 				$empDetailsObj_tmp = $this->fetchAll($empDetailsQuery)->toArray();
-
-				foreach ($empDetailsObj_tmp as &$row) {
-					$empDetailsObj[$row['user_id']] = &$row;
+				$empDetailsObj = array();
+				foreach ($empDetailsObj_tmp as $row) {
+					$empDetailsObj[$row['user_id']] = $row;
 				}
-
 			}
 			if(!empty($businessUnitsStr))
 			{
@@ -105,8 +104,8 @@ class Exit_Model_Exitprocsettings extends Zend_Db_Table_Abstract
 								->order("bu.unitname");
 
 				$buDetailsObj_tmp = $this->fetchAll($buDetailsQuery)->toArray();
-				foreach ($buDetailsObj_tmp as &$row) {
-					$buDetailsObj[$row['id']] = &$row;
+				foreach ($buDetailsObj_tmp as $row) {
+					$buDetailsObj[$row['id']] = $row;
 				}
 			}
 			if(!empty($departmentsStr))
@@ -120,11 +119,12 @@ class Exit_Model_Exitprocsettings extends Zend_Db_Table_Abstract
 								->order("d.deptname");
 
 				$deptDetailsObj_tmp = $this->fetchAll($deptDetailsQuery)->toArray();
-				foreach ($deptDetailsObj_tmp as &$row) {
-					$deptDetailsObj[$row['id']] = &$row;
+				foreach ($deptDetailsObj_tmp as $row) {
+					$deptDetailsObj[$row['id']] = $row;
 				}
 			}			
 		}
+		//echo $dashboardcall;
 		$dataTmp = array(
 			'sort' => $sort,
 			'by' => $by,
@@ -144,6 +144,8 @@ class Exit_Model_Exitprocsettings extends Zend_Db_Table_Abstract
 			'buDetailsObj' => $buDetailsObj,
 			'deptDetailsObj' => $deptDetailsObj,
 		);
+		
+		//echo print_r($dataTmp['deptDetailsObj']);
 		return $dataTmp;
 	}
 
