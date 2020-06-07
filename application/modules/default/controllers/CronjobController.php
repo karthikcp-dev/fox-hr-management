@@ -423,7 +423,7 @@ class Default_CronjobController extends Zend_Controller_Action
                             $this->view->user_id = $mdata['employeeId'];
                             $this->view->base_url = $base_url;
                             $text = $view->render('mailtemplates/inactiveusercron.phtml');
-                            $options['subject'] = APPLICATION_NAME.': FoxHR account inactivated';
+                            $options['subject'] = APPLICATION_NAME.': Sentrifugo account inactivated';
                             $options['header'] = 'Employee inactivated';
                             $options['toEmail'] = $mdata['emailaddress'];
                             $options['toName'] = $mdata['userfullname'];
