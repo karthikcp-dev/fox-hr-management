@@ -159,6 +159,7 @@ function downloadEmpDoc(doc_id,file_name,user_id)
 	var form = [ '<form method="POST" action="', url, '">' ];	
 	form.push('<input type="hidden" id="doc_id" name="doc_id" value="',doc_id,'"/>');
 	form.push('<input type="hidden" id="user_id" name="user_id" value="',user_id,'"/>');
+	form.push('<input type="hidden" id="type" name="type" value="doc"/>');
 	form.push('</form>');
 
 	jQuery(form.join('')).appendTo('body')[0].submit();	
@@ -361,7 +362,7 @@ function validateEmpDoc()
 				url: base_url+'/employeedocs/save',
 				type: "POST",
 				dataType: 'json',
-				data: 'userid='+userid+'&doc_name='+doc_name+'&file_original_names='+file_original_names+'&file_new_names='+file_new_names,
+				data: 'userid='+userid+'&doc_name='+doc_name+'&type=doc&file_original_names='+file_original_names+'&file_new_names='+file_new_names,
 				success: function(response) {
 					if(response['result']=='success')
 						successmessage_changestatus_url('Document saved successfully.','success','employeedocs',base_url+'/employeedocs/index/userid/'+userid);

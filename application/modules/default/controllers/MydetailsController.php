@@ -5199,7 +5199,6 @@ class Default_MydetailsController extends Zend_Controller_Action
 		if(defined('EMPTABCONFIGS'))
 		{
 			$empOrganizationTabs = explode(",",EMPTABCONFIGS);
-
 		 	if(in_array('employeedocs',$empOrganizationTabs))
 		 	{
 			 	$auth = Zend_Auth::getInstance();
@@ -5246,6 +5245,64 @@ class Default_MydetailsController extends Zend_Controller_Action
 			$this->_redirect('error');
 		}
 	}
+
+	public function payslipsAction()
+	{
+		if(defined('EMPTABCONFIGS'))
+		{
+			$empOrganizationTabs = explode(",",EMPTABCONFIGS);
+		 	if(in_array('emp_payslips',$empOrganizationTabs))
+		 	{
+				 $auth = Zend_Auth::getInstance();
+				 $storage = new Zend_Auth_Storage_Session();
+				$data = $storage->read();
+				$role = $data['emprole'];
+			 	if($auth->hasIdentity())
+			 	{
+			 		$loginUserId = $auth->getStorage()->read()->id;
+		 		}
+
+			 	$id = $loginUserId;//$this->getRequest()->getParam('userid');
+			 	
+			 	try
+			 	{
+			 		if($id && is_numeric($id) && $id>0 && $id==$loginUserId)
+					{
+						$employeeModal = new Default_Model_Employee();
+						$empdata = $employeeModal->getActiveEmployeeData($id);
+						if(!empty($empdata))
+						{
+							$empDocuModel = new Default_Model_Emppayslips();
+							$empDocuments = $empDocuModel->getEmpDocumentsByFieldOrAll('user_id',$id);
+
+							$this->view->empDocuments = $empDocuments;
+						}
+						
+						$usersModel = new Default_Model_Users();
+						$employeeData = $usersModel->getUserDetailsByIDandFlag($id);
+						if(!empty($employeeData))
+							$this->view->employeedata = $employeeData[0];
+						$this->view->id = $id;
+						$this->view->empdata = $empdata;
+					} else {
+				   		$this->view->rowexist = "norows";
+					}
+			 	}
+			 	catch(Exception $e) {
+		 			$this->view->rowexist = "norows";
+		 		}
+				 // Show message to user when document was deleted by other user.
+				$this->view->userrole = $role;
+		 		$this->view->messages = $this->_helper->flashMessenger->getMessages();
+			}else{
+		 		$this->_redirect('error');
+		 	}
+		}else{
+			$this->_redirect('error');
+		}
+	}
+
+
 	public function assetdetailsviewAction()
 	{
 		if(defined('EMPTABCONFIGS'))

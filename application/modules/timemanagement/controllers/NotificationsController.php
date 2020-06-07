@@ -475,6 +475,7 @@ class Timemanagement_NotificationsController extends Zend_Controller_Action
 	//function to get pending submissions
 	public function pendingsubmissionsAction()
 	{
+
 		$auth = Zend_Auth::getInstance();
 		$loginUserId=0;
 		if($auth->hasIdentity()){
@@ -484,6 +485,7 @@ class Timemanagement_NotificationsController extends Zend_Controller_Action
 		$notificationModel = new Timemanagement_Model_Notifications();
 		$getManagerEmployees = array();
 		$getManagerEmployees = $notificationModel->getManagerEmployees($loginUserId);
+		
 		$concat_array = array();
 		if(count($getManagerEmployees)>0)
 		{

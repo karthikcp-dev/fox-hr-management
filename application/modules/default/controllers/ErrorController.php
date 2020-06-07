@@ -25,6 +25,7 @@ class Default_ErrorController extends Zend_Controller_Action
     public function errorAction()
     {
         $errors = $this->_getParam('error_handler');
+        $body = $this->_getParam('body');
         
         if (!$errors) {
             //this is for error that coming from accesscontrol.

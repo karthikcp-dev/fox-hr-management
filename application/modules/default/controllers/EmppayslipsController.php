@@ -29,6 +29,7 @@ class Default_EmppayslipsController extends Zend_Controller_Action
 
 	public function init()
 	{
+
 		$this->_options= $this->getInvokeArg('bootstrap')->getOptions();
 	}
 
@@ -43,41 +44,51 @@ class Default_EmppayslipsController extends Zend_Controller_Action
 		{
 			$empOrganizationTabs = explode(",",EMPTABCONFIGS);
 
-		 if(in_array('emp_payslips',$empOrganizationTabs)){
-	   $auth = Zend_Auth::getInstance();
-	   if($auth->hasIdentity())
-	   {
-	   	$loginUserId = $auth->getStorage()->read()->id;
-	   }
-	   $userid = $this->getRequest()->getParam('userid');
-	   $employeeModal = new Default_Model_Employee();
-	   $isrowexist = $employeeModal->getsingleEmployeeData($userid);
-	   if($isrowexist == 'norows')
-		  $this->view->rowexist = "norows";
-		  else
-		  $this->view->rowexist = "rows";
+		 	if(in_array('employeedocs',$empOrganizationTabs))
+		 	{
+			 	$auth = Zend_Auth::getInstance();
+			 	if($auth->hasIdentity())
+			 	{
+			 		$loginUserId = $auth->getStorage()->read()->id;
+					$loginuserGroup = $auth->getStorage()->read()->group_id;
+			 		$loginUserRole = $auth->getStorage()->read()->emprole;
+		 		}
 
-		  $empdata = $employeeModal->getActiveEmployeeData($userid);
-		  if(!empty($empdata))
-		  {
-		  	$emppayslipsModel = new Default_Model_Emppayslips();
-		  	if($userid)
-		  	{
-		  		//To display Employee Profile information......
-		  		$usersModel = new Default_Model_Users();
-		  		$employeeData = $usersModel->getUserDetailsByIDandFlag($userid);
-		  	}
-		  	$this->view->id=$userid;
-		  	$this->view->employeedata = $employeeData[0];
+			 	$id = $this->getRequest()->getParam('userid');
+			 	
+			 	try
+			 	{
+			 		if($id && is_numeric($id) && $id>0 && $id!=$loginUserId && ($loginuserGroup == HR_GROUP ||$loginuserGroup == MANAGEMENT_GROUP || $loginUserRole == SUPERADMIN))
+					{
+						$employeeModal = new Default_Model_Employee();
+						$empdata = $employeeModal->getActiveEmployeeData($id);
+						if(!empty($empdata))
+						{
+							$empDocuModel = new Default_Model_Emppayslips();
+							$empDocuments = $empDocuModel->getEmpDocumentsByFieldOrAll('user_id',$id);
 
-		  	if($this->getRequest()->getPost())
-		  	{
-		  	}
-		  }
-		  $this->view->empdata = $empdata;
-		 }else{
-		 	$this->_redirect('error');
-		 }
+							$this->view->empDocumentpay = $empDocuments;
+									//die(print_r($this->view->empDocumentpay));
+						}
+						
+						$usersModel = new Default_Model_Users();
+						$employeeData = $usersModel->getUserDetailsByIDandFlag($id);
+						if(!empty($employeeData))
+							$this->view->employeedata = $employeeData[0];
+						$this->view->id = $id;
+						$this->view->empdata = $empdata;
+					} else {
+				   		$this->view->rowexist = "norows";
+					}
+			 	}
+			 	catch(Exception $e) {
+		 			$this->view->rowexist = "norows";
+		 		}
+		 		// Show message to user when document was deleted by other user.
+		 		$this->view->messages = $this->_helper->flashMessenger->getMessages();
+			}else{
+		 		$this->_redirect('error');
+		 	}
 		}else{
 			$this->_redirect('error');
 		}
@@ -89,48 +100,55 @@ class Default_EmppayslipsController extends Zend_Controller_Action
 		if(defined('EMPTABCONFIGS'))
 		{
 			$empOrganizationTabs = explode(",",EMPTABCONFIGS);
-
-		 if(in_array('emp_payslips',$empOrganizationTabs)){
-		 	$auth = Zend_Auth::getInstance();
-		 	if($auth->hasIdentity())
+		 	if(in_array('employeedocs',$empOrganizationTabs))
 		 	{
-		 		$loginUserId = $auth->getStorage()->read()->id;
-		 	}
-		 	$userid = $this->getRequest()->getParam('userid');
-		 	$employeeModal = new Default_Model_Employee();
-		 	$isrowexist = $employeeModal->getsingleEmployeeData($userid);
-		 	if($isrowexist == 'norows')
-		 	$this->view->rowexist = "norows";
-		 	else
-		 	$this->view->rowexist = "rows";
-
-		 	$empdata = $employeeModal->getActiveEmployeeData($userid);
-		 	if(!empty($empdata))
-		 	{
-		 		$emppayslipsModel = new Default_Model_Emppayslips();
-		 		if($userid)
-		 		{
-		 			//To display Employee Profile information......
-		 			$usersModel = new Default_Model_Users();
-		 			$employeeData = $usersModel->getUserDetailsByIDandFlag($userid);
+			 	$auth = Zend_Auth::getInstance();
+			 	if($auth->hasIdentity())
+			 	{
+			 		$loginUserId = $auth->getStorage()->read()->id;
+					$loginuserGroup = $auth->getStorage()->read()->group_id;
+					$loginUserRole = $auth->getStorage()->read()->emprole;
 		 		}
-		 		$this->view->id=$userid;
-		 		$this->view->employeedata = $employeeData[0];
 
-		 		if($this->getRequest()->getPost())
-		 		{
+			 	$id = $this->getRequest()->getParam('userid');
+			 	
+			 	try
+			 	{
+			 		if($id && is_numeric($id) && $id>0 && $id!=$loginUserId && ($loginuserGroup == HR_GROUP ||$loginuserGroup == MANAGEMENT_GROUP || $loginUserRole == SUPERADMIN))
+					{
+						$employeeModal = new Default_Model_Employee();
+						$empdata = $employeeModal->getActiveEmployeeData($id);
+						if(!empty($empdata))
+						{
+							$empDocuModel = new Default_Model_Emppayslips();
+							$empDocuments = $empDocuModel->getEmpDocumentsByFieldOrAll('user_id',$id);
+
+							$this->view->empDocumentpay = $empDocuments;
+									//die(print_r($this->view->empDocumentpay));
+						}
+						
+						$usersModel = new Default_Model_Users();
+						$employeeData = $usersModel->getUserDetailsByIDandFlag($id);
+						if(!empty($employeeData))
+							$this->view->employeedata = $employeeData[0];
+						$this->view->id = $id;
+						$this->view->empdata = $empdata;
+					} else {
+				   		$this->view->rowexist = "norows";
+					}
+			 	}
+			 	catch(Exception $e) {
+		 			$this->view->rowexist = "norows";
 		 		}
+		 		// Show message to user when document was deleted by other user.
+		 		$this->view->messages = $this->_helper->flashMessenger->getMessages();
+			}else{
+		 		$this->_redirect('error');
 		 	}
-		 	$this->view->empdata = $empdata;
-		 }else{
-		 	$this->_redirect('error');
-		 }
 		}else{
 			$this->_redirect('error');
 		}
 	}
-
-
 
 }
 ?>

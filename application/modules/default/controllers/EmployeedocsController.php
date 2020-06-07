@@ -147,14 +147,88 @@ class Default_EmployeedocsController extends Zend_Controller_Action
      	if($auth->hasIdentity()){
 			$loginUserId = $auth->getStorage()->read()->id;
 		}
-		$empDocuModel = new Default_Model_Employeedocs();
 		
 		$id = $this->getRequest()->getParam('id');
 		$userid = $this->getRequest()->getParam('userid');
 		$doc_name = $this->getRequest()->getParam('doc_name');
+		$type = $this->getRequest()->getParam('type');
 		$file_original_names = $this->getRequest()->getParam('file_original_names');
 		$file_new_names = $this->getRequest()->getParam('file_new_names');
-		
+		//Payslip Upload code
+		if($type == "payslip"){
+		$empDocuModel = new Default_Model_Emppayslips();
+		$doc_month = $this->getRequest()->getParam('doc_month');
+		$empDocumentsCount = $empDocuModel->getEmpDocumentsByFieldOrAll('user_id',$userid);
+		if(count($empDocumentsCount) < EMP_MAX_DOCS)
+		{
+			$org_names = explode(',', $file_original_names);
+			$new_names = explode(',', $file_new_names);
+	        $attachment_array = array();
+	
+			for ($i=0; $i < count($org_names); $i++)
+	        {
+	        	if($new_names[$i] != '')
+	            	$attachment_array[] = array("original_name" => $org_names[$i], "new_name" => $new_names[$i]);
+			}
+			
+			$empDocuments = $empDocuModel->checkDocNameByUserIdAndDocId($userid, $doc_name);
+			
+			$count_emp_docs = count($empDocuments);
+			$exception = 'no';
+				try{
+					if(count($new_names) > 0)
+	                {
+						foreach ($new_names as $n)
+	                    {
+	                    	if($n != '')
+	                        {
+	                        	if(file_exists(EMP_DOC_TEMP_UPLOAD_PATH.$n))
+	                            {
+	                            	copy(EMP_DOC_TEMP_UPLOAD_PATH.$n, EMP_DOC_UPLOAD_PATH.$n);
+	                                unlink(EMP_DOC_TEMP_UPLOAD_PATH.$n);
+	                           	}
+							}
+						}
+	              	}
+				}catch (Exception $e){
+					$exception = 'no';
+				}
+			
+			if($exception == 'no')
+			{
+				$data = array(
+								'user_id' => $userid,
+								'name' => $doc_name,
+								'month'=> $doc_month,
+		                        'attachments' => count($attachment_array) > 0?json_encode($attachment_array):null,
+		                        'modifiedby' => $loginUserId,
+		                        'modifieddate'=>gmdate("Y-m-d H:i:s")
+						);
+				if($id!=''){
+					$where = array('id=?'=>$id);  
+					$actionflag = 2;
+				}
+				else
+				{
+					$data['createdby'] = $loginUserId;
+					$data['createddate'] = gmdate("Y-m-d H:i:s");
+					$where = '';
+					$actionflag = 1;
+				}
+				$recordId = $empDocuModel->SaveorUpdateEmpDocuments($data, $where);
+				$menuID = EMPLOYEE;
+				$result = sapp_Global::logManager($menuID,$actionflag,$loginUserId,$userid);
+				
+				$this->_helper->json(array('result' => 'success'));
+			} else {
+					$this->_helper->json(array('result' => 'error'));
+			}
+		}else
+			$this->_helper->json(array('result' => 'max'));
+		}
+		//Document Upload Section
+		else{
+		$empDocuModel = new Default_Model_Employeedocs();
 		$empDocumentsCount = $empDocuModel->getEmpDocumentsByFieldOrAll('user_id',$userid);
 		if(count($empDocumentsCount) < EMP_MAX_DOCS)
 		{
@@ -224,6 +298,7 @@ class Default_EmployeedocsController extends Zend_Controller_Action
 			}
 		}else
 			$this->_helper->json(array('result' => 'max'));
+		}
 	}
 	
 	public function deleteAction()
@@ -232,6 +307,43 @@ class Default_EmployeedocsController extends Zend_Controller_Action
      	if($auth->hasIdentity()){
 			$loginUserId = $auth->getStorage()->read()->id;
 		}
+		$type = $this->_request->getParam('type');
+		if($type == 'pay'){
+		$id = $this->_request->getParam('doc_id');
+		$messages['message'] = '';
+		$messages['msgtype'] = '';
+		$count = 0;
+		$actionflag = 3;
+		if($id)
+		{
+			$empDocuModel = new Default_Model_Emppayslips();
+			$data = array('isactive'=>0,	
+							'modifiedby'=>$loginUserId,
+							'modifieddate'=>gmdate("Y-m-d H:i:s")
+					);
+			$where = array('id=?'=>$id);
+			$record_id = $empDocuModel->SaveorUpdateEmpDocuments($data, $where);
+			if($record_id == 'update')
+			{
+				$menuID = EMPLOYEE;
+				$result = sapp_Global::logManager($menuID,$actionflag,$loginUserId,$id);
+				$messages['message'] = 'Document deleted successfully.';
+				$messages['msgtype'] = 'success';
+			}   
+			else
+			{
+	        	$messages['message'] = 'Document cannot be deleted.';
+	            $messages['msgtype'] = 'error';
+	       	}
+		}
+		else
+		{ 
+			$messages['message'] = 'Document cannot be deleted.';
+			$messages['msgtype'] = 'error';
+		}
+		$this->_helper->json($messages);
+	}
+	else{
 		$id = $this->_request->getParam('doc_id');
 		$messages['message'] = '';
 		$messages['msgtype'] = '';
@@ -264,33 +376,89 @@ class Default_EmployeedocsController extends Zend_Controller_Action
 			$messages['message'] = 'Document cannot be deleted.';
 			$messages['msgtype'] = 'error';
 		}
-		$this->_helper->json($messages);		
+		$this->_helper->json($messages);
+	}		
 	}
 	
 	public function editAction(){
 		$id = $this->_request->getParam('doc_id');
+		$type= $this->_request->getParam('type');
+		if($type == 'pay'){
+		$empDocuModel = new Default_Model_Emppayslips();
+		$empDocuments = $empDocuModel->getEmpDocumentsByFieldOrAll('id',$id);
+		if (!empty($empDocuments[0])) {
+			$this->view->empDocuments = $empDocuments[0];
+			$this->view->type = 'pay';
+		} else {
+			exit("No file");	
+		}
+		}
+		else{
 		$empDocuModel = new Default_Model_Employeedocs();
 		$empDocuments = $empDocuModel->getEmpDocumentsByFieldOrAll('id',$id);
 		if (!empty($empDocuments[0])) {
 			$this->view->empDocuments = $empDocuments[0];
+			$this->view->type = 'doc';
 		} else {
 			exit("No file");	
+		}
 		}
 		
 	}
 	
 	public function updateAction(){
 		
-		$empDocuModel = new Default_Model_Employeedocs();
 		$auth = Zend_Auth::getInstance();
      	if($auth->hasIdentity()){
 			$loginUserId = $auth->getStorage()->read()->id;
 		}
 		$id = $this->_request->getParam('doc_id');
+		$type = $this->_request->getParam('type');
 		$name = $this->_request->getParam('doc_name');
 		$userid = $this->_request->getParam('userid');
-		
+		if($type == 'pay'){
+		$empDocuModel = new Default_Model_Emppayslips();
+		$month = $this->_request->getParam('doc_month');
 		// Get attachments
+		$file_original_names = $this->getRequest()->getParam('file_original_names');
+		$file_new_names = $this->getRequest()->getParam('file_new_names');
+		$org_names = explode(',', $file_original_names);
+		$new_names = explode(',', $file_new_names);
+        $attachment_array = array();
+
+		for ($i=0; $i < count($org_names); $i++)
+        {
+        	if($new_names[$i] != '')
+            	$attachment_array[] = array("original_name" => $org_names[$i], "new_name" => $new_names[$i]);
+		}
+					
+		$data = array(
+						'name' => $name,
+						'month' => $month,
+						'attachments' => count($attachment_array) > 0?json_encode($attachment_array):null,
+                        'modifiedby' => $loginUserId,
+                        'modifieddate'=>gmdate("Y-m-d H:i:s")
+				);
+
+		// Validate duplicate document name
+		$empDocuments = $empDocuModel->checkDocNameByUserIdAndDocId($userid, $name, $id);
+
+		$count_emp_docs = count($empDocuments);
+
+		
+			$where = array('id=?'=>$id);  
+			$actionflag = 2;
+			
+			$recordId = $empDocuModel->SaveorUpdateEmpDocuments($data, $where);
+			$menuID = EMPLOYEE;
+			$result = sapp_Global::logManager($menuID,$actionflag,$loginUserId,$userid);
+			
+			$this->_helper->json(array('result' => 'success'));
+
+	}
+	else{
+		// Get attachments
+		$empDocuModel = new Default_Model_Employeedocs();
 		$file_original_names = $this->getRequest()->getParam('file_original_names');
 		$file_new_names = $this->getRequest()->getParam('file_new_names');
 		$org_names = explode(',', $file_original_names);
@@ -314,7 +482,6 @@ class Default_EmployeedocsController extends Zend_Controller_Action
 		$empDocuments = $empDocuModel->checkDocNameByUserIdAndDocId($userid, $name, $id);
 
 		$count_emp_docs = count($empDocuments);
-		if($count_emp_docs==0) {
 		
 			$where = array('id=?'=>$id);  
 			$actionflag = 2;
@@ -324,13 +491,7 @@ class Default_EmployeedocsController extends Zend_Controller_Action
 			$result = sapp_Global::logManager($menuID,$actionflag,$loginUserId,$userid);
 			
 			$this->_helper->json(array('result' => 'success'));
-		} else {
-			if($count_emp_docs>0)
-						$this->_helper->json(array('result' => 'exists'));
-					else
-						$this->_helper->json(array('result' => 'error'));
-			
-		}
+	}
 	}
 	
 	public function uploadsaveAction() 
@@ -411,8 +572,103 @@ class Default_EmployeedocsController extends Zend_Controller_Action
     
 	function downloadfilesAction()
 	{
+		$type = $_POST['type'];
+		if($type == 'pay'){
 		if($_POST){
-			
+			$doc_id = $_POST['doc_id'];
+			$file_name = isset($_POST['file_name'])? $_POST['file_name'] : '';
+			$empDocuModel = new Default_Model_Emppayslips();
+			$empDocuments = $empDocuModel->getEmpDocumentsByFieldOrAll('id',$doc_id);
+			if (!empty($empDocuments)) {
+				if($empDocuments[0]['attachments']){
+					$attachments = json_decode($empDocuments[0]['attachments'],true);
+					//Downloading single file
+					if($file_name)
+					{	$new = array();$ori = array();
+
+							foreach ($attachments as $k => $v){
+							 if($file_name == $v["new_name"])
+							 {
+							   $new[] = $v["new_name"];
+							   $ori[] = $v["original_name"];
+							 }
+						}
+					}
+					else 
+					{
+					  if(count($attachments)>0){
+				    	$new = array();$ori = array();
+				        foreach ($attachments as $k => $v){
+							$new[] = $v["new_name"];
+							$ori[] = $v["original_name"];
+						}
+				     }
+					}
+				}
+				
+				$file_names = $new;
+				$originalNames = $ori;
+				$originalNamesString = implode(",", $originalNames);
+				if(isset($file_name) && empty($_POST['user_id']))
+				{
+					$fileNameArr = explode('.',$file_name);
+					$download_file_name = $empDocuments[0]['name'].'_'.$empDocuments[0]['month'].'_'.$ori[0]; //to appand original name for single file download
+				 	$archive_file_name = preg_replace('/[^a-zA-Z0-9\']/', '_', $download_file_name);
+				}
+				else {
+				$archive_file_name = preg_replace('/[^a-zA-Z0-9\']/', '_', $empDocuments[0]['name'].'_'.$empDocuments[0]['month']);
+				}
+				$file_path = EMP_DOC_UPLOAD_PATH;
+	
+				$temp = md5(DATE_CONSTANT.uniqid()).'.zip';
+	
+				$zip = new ZipArchive();
+				//create the file and throw the error if unsuccessful
+				if ($zip->open($file_path.$archive_file_name.$temp, ZIPARCHIVE::CREATE )!==TRUE) {
+					exit("cannot open <$archive_file_name>\n");
+				}
+				//add each files of $file_name array to archive
+				for($i=0; $i<sizeof($file_names); $i++)
+				{
+					$name = '';
+					$count = substr_count($originalNamesString, $originalNames[$i]);
+					if($count > 1)
+					$name = $i.$originalNames[$i];
+					else
+					$name = $originalNames[$i];
+					$zip->addFile($file_path.$file_names[$i],$name);
+				}
+				$zip->close();
+				//then send the headers to foce download the zip file
+				header("Content-type: application/zip");
+				header("Content-Disposition: attachment; filename=".$archive_file_name.'.zip');
+				header("Pragma: no-cache");
+				header("Expires: 0");
+				readfile($file_path.$archive_file_name.$temp);
+				unlink($file_path.$archive_file_name.$temp);
+				exit;
+				
+			} else {
+				$this->_helper->getHelper("FlashMessenger")->addMessage(array("error"=>'This document was deleted by other user just now.'));
+				$auth = Zend_Auth::getInstance();
+				$loginUserId = $auth->getStorage()->read()->id;
+				if (!empty($_POST['user_id'])) {
+					if (!empty($_POST['context']) && $_POST['context'] == 'My Employees') {
+						$this->_redirect('myemployees/docedit/userid/'.$_POST['user_id']);
+					} else {
+						$this->_redirect('employeedocs/index/userid/'.$_POST['user_id']);				
+					}
+				} else {
+					$this->_redirect('mydetails/documents');
+				}
+			}
+		}
+		else{
+			$this->_redirect('error');
+		}
+	}
+	else{
+		if($_POST){
 			$doc_id = $_POST['doc_id'];
 			$file_name = isset($_POST['file_name'])? $_POST['file_name'] : '';
 			$empDocuModel = new Default_Model_Employeedocs();
@@ -504,5 +760,6 @@ class Default_EmployeedocsController extends Zend_Controller_Action
 		else{
 			$this->_redirect('error');
 		}
+	}
 	}    
 }
